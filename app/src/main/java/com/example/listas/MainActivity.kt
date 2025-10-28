@@ -64,10 +64,10 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         setContent {
             ListasTheme {
-                Scaffold(modifier = Modifier.fillMaxSize()) {
-                        innerPadding -> AppContent(
-                    modifier = Modifier.padding(innerPadding)
-                )
+                Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
+                    AppContent(
+                        modifier = Modifier.padding(innerPadding)
+                    )
                 }
             }
         }
@@ -78,14 +78,16 @@ class MainActivity : ComponentActivity() {
 fun AppContent(modifier: Modifier = Modifier) {
     val navController = rememberNavController()
 
-        NavHost(navController = navController, startDestination = "Login") {
-            composable("Login") { LoginContent(navController, modifier) }
-            composable("Menu") { MenuContent(navController, modifier) }
-            composable("lstCalificaciones") { LstCalificacionesContent(navController, modifier) }
-            composable("frmCalificaciones") { FrmCalificacionesContent(navController, modifier) }
-            composable("lstLibros") { LstLibrosContent(navController, modifier) }
-            composable("frmLibros") { FrmLibrosContent(navController, modifier) }
-
+    NavHost(
+        navController = navController,
+        startDestination = "Login"
+    ) {
+        composable("Login") { LoginContent(navController, modifier) }
+        composable("Menu") { MenuContent(navController, modifier) }
+        composable("lstCalificaciones") { LstCalificacionesContent(navController, modifier) }
+        composable("frmCalificaciones") { FrmCalificacionesContent(navController, modifier) }
+        composable("lstLibros") { LstLibrosContent(navController, modifier) }
+        composable("frmLibros") { FrmLibrosContent(navController, modifier) }
     }
 }
 
@@ -117,7 +119,8 @@ fun LoginContent(navController: NavHostController, modifier: Modifier) {
                     navController.navigate("Menu")
                 } else {
 
-                    Toast.makeText(context, "Usuario o contraseña incorrectos", Toast.LENGTH_LONG).show()
+                    Toast.makeText(context, "Usuario o contraseña incorrectos", Toast.LENGTH_LONG)
+                        .show()
                 }
             },
             colors = ButtonDefaults.buttonColors(
@@ -176,7 +179,8 @@ fun LoginContent(navController: NavHostController, modifier: Modifier) {
                     navController.navigate("menu")
                 } else {
 
-                    Toast.makeText(context, "Usuario o contraseña incorrectos", Toast.LENGTH_LONG).show()
+                    Toast.makeText(context, "Usuario o contraseña incorrectos", Toast.LENGTH_LONG)
+                        .show()
                 }
             },
             modifier = Modifier.align(Alignment.End)
@@ -428,7 +432,8 @@ fun LstLibrosContent(navController: NavHostController, modifier: Modifier) {
                     modifier = Modifier.width(200.dp)
                 )
                 Spacer(modifier = Modifier.width(10.dp))
-                Button(onClick = { libros.removeAt(index)
+                Button(onClick = {
+                    libros.removeAt(index)
 
                 }) {
                     Text("Eliminar")
@@ -719,6 +724,7 @@ fun FrmCalificacionesContent(navController: NavHostController, modifier: Modifie
         val calificacion: Int,
         val resena: String
     )
+
     val calificaciones = remember {
         mutableStateListOf(
             Calificacion(1, "El principito", 10, "INCREÍBLE"),
@@ -808,7 +814,8 @@ fun FrmCalificacionesContent(navController: NavHostController, modifier: Modifie
             Button(
                 onClick = {
                     Toast.makeText(context, "Libro: ${libro}", Toast.LENGTH_SHORT).show()
-                    Toast.makeText(context, "Calificación: ${calificacion}", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(context, "Calificación: ${calificacion}", Toast.LENGTH_SHORT)
+                        .show()
                     Toast.makeText(context, "Reseña: ${resena}", Toast.LENGTH_SHORT).show()
                 },
 
@@ -821,10 +828,10 @@ fun FrmCalificacionesContent(navController: NavHostController, modifier: Modifie
 }
 
 
-    @Preview(showBackground = true)
-    @Composable
-    fun AppContentPreview() {
-        ListasTheme {
-            AppContent()
-        }
+@Preview(showBackground = true)
+@Composable
+fun AppContentPreview() {
+    ListasTheme {
+        AppContent()
     }
+}
