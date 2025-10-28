@@ -6,8 +6,10 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -733,18 +735,14 @@ fun FrmCalificacionesContent(navController: NavHostController, modifier: Modifie
         )
     }
 
-    //var productoExpandido by remember { mutableStateOf(false) }
-    //var producto by remember { mutableStateOf(productoOpciones[0]) }
-
-    // productos[index] = Producto(nombre, precio, existencias)
-    // productos[2] = Producto("Florentinas Fresa", 20.0, 5)
-
-    val context = LocalContext.current
     val scrollState = rememberScrollState()
 
     var libro by remember { mutableStateOf("") } //datos línea Usuario
+    var expanded by remember { mutableStateOf(false) }
     var calificacion by remember { mutableStateOf("") }
     var resena by remember { mutableStateOf("") }
+
+    val context = LocalContext.current
 
     Column(
         modifier = modifier
@@ -778,13 +776,45 @@ fun FrmCalificacionesContent(navController: NavHostController, modifier: Modifie
         Spacer(modifier = Modifier.height(16.dp))
 
 
-        Text(text = "Libro:")
+        /*Text(text = "Libro:")
         TextField(
             value = libro,
             onValueChange = { libro = it },
             placeholder = { Text("Ingresa el Libro:") },
             modifier = Modifier.fillMaxWidth()
-        )
+        )*/
+
+        Text(text = "Libro:")
+        var expanded by remember { mutableStateOf(false) }
+        val opcionesLibros = listOf("Tan Poca Vida", "Orgullo y Prejuicio", "50 leyes del poder")
+        Box {
+            TextField(
+                value = libro,
+                onValueChange = { },
+                placeholder = { Text("Selecciona un libro") },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { expanded = true },
+                readOnly = true // para que no se pueda escribir manualmente
+            )
+            DropdownMenu(
+                expanded = expanded,
+                onDismissRequest = { expanded = false }
+            ) {
+                opcionesLibros.forEach { opcion ->
+                    DropdownMenuItem(
+                        text = { Text(opcion) },
+                        onClick = {
+                            libro = opcion
+                            expanded = false
+                        }
+                    )
+                }
+            }
+        }
+        Spacer(modifier = Modifier.height(16.dp))
+
+
         Spacer(modifier = Modifier.height(16.dp))
 
         Text(text = "Calificación:")
