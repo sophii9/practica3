@@ -19,8 +19,12 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.wrapContentSize
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Divider
@@ -28,9 +32,15 @@ import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
+import androidx.compose.material3.TextFieldColors
+import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
@@ -82,7 +92,7 @@ fun AppContent(modifier: Modifier = Modifier) {
 
     NavHost(
         navController = navController,
-        startDestination = "Login"
+        startDestination = "frmCalificaciones"
     ) {
         composable("Login") { LoginContent(navController, modifier) }
         composable("Menu") { MenuContent(navController, modifier) }
@@ -776,30 +786,40 @@ fun FrmCalificacionesContent(navController: NavHostController, modifier: Modifie
         Spacer(modifier = Modifier.height(16.dp))
 
 
-        /*Text(text = "Libro:")
-        TextField(
-            value = libro,
-            onValueChange = { libro = it },
-            placeholder = { Text("Ingresa el Libro:") },
-            modifier = Modifier.fillMaxWidth()
-        )*/
-
         Text(text = "Libro:")
+        Spacer(modifier = Modifier.height(8.dp))
+
+        var libro by remember { mutableStateOf("") }
         var expanded by remember { mutableStateOf(false) }
+
         val opcionesLibros = listOf("Tan Poca Vida", "Orgullo y Prejuicio", "50 leyes del poder")
-        Box {
-            TextField(
+
+        Box(
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            OutlinedTextField(
                 value = libro,
                 onValueChange = { },
                 placeholder = { Text("Selecciona un libro") },
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clickable { expanded = true },
-                readOnly = true // para que no se pueda escribir manualmente
+                    .clickable { expanded = !expanded }, // Cambia el estado al hacer clic
+                readOnly = true,
+                trailingIcon = {
+                    IconButton(onClick = { expanded = !expanded }) {
+                        Icon(
+                            imageVector = if (expanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
+                            contentDescription = "Expandir menú"
+                        )
+                    }
+                },
+                enabled = false
             )
+
             DropdownMenu(
                 expanded = expanded,
-                onDismissRequest = { expanded = false }
+                onDismissRequest = { expanded = false },
+                modifier = Modifier.fillMaxWidth()
             ) {
                 opcionesLibros.forEach { opcion ->
                     DropdownMenuItem(
@@ -813,7 +833,6 @@ fun FrmCalificacionesContent(navController: NavHostController, modifier: Modifie
             }
         }
         Spacer(modifier = Modifier.height(16.dp))
-
 
         Spacer(modifier = Modifier.height(16.dp))
 
@@ -852,10 +871,12 @@ fun FrmCalificacionesContent(navController: NavHostController, modifier: Modifie
                 ) {
                 Text("Enviar")
             }
+
         }
 
     }
 }
+
 
 
 @Preview(showBackground = true)
