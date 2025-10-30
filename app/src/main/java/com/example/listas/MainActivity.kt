@@ -836,13 +836,62 @@ fun FrmCalificacionesContent(navController: NavHostController, modifier: Modifie
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        Text(text = "Calificación:")
+        /*Text(text = "Calificación:")
         TextField(
             value = calificacion,
             onValueChange = { calificacion = it },
             placeholder = { Text("Ingresa una calificación:") },
             modifier = Modifier.fillMaxWidth()
-        )
+        )*/
+
+        Text(text = "Libro:")
+        Spacer(modifier = Modifier.height(8.dp))
+
+        var calif by remember { mutableStateOf("") }
+        var expand by remember { mutableStateOf(false) }
+
+        val opcionesCalificacion = listOf("1", "2", "3")
+
+        Box(
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            OutlinedTextField(
+                value = calif,
+                onValueChange = { },
+                placeholder = { Text("Selecciona una calificación") },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { expand = !expand }, // Cambia el estado al hacer clic
+                readOnly = true,
+                trailingIcon = {
+                    IconButton(onClick = { expand = !expand }) {
+                        Icon(
+                            imageVector = if (expand) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
+                            contentDescription = "Expandir Calificación"
+                        )
+                    }
+                },
+                enabled = false
+            )
+
+            DropdownMenu(
+                expanded = expand,
+                onDismissRequest = { expand = false },
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                opcionesCalificacion.forEach { opcion ->
+                    DropdownMenuItem(
+                        text = { Text(opcion) },
+                        onClick = {
+                            libro = opcion
+                            expand = false
+                        }
+                    )
+                }
+            }
+        }
+        Spacer(modifier = Modifier.height(16.dp))
+
         Spacer(modifier = Modifier.height(16.dp))
 
         Text(text = "Reseña:")
