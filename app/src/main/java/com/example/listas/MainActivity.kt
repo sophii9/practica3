@@ -1,6 +1,7 @@
 package com.example.listas
 
 import android.os.Bundle
+import android.util.Log
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -46,6 +47,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -65,6 +67,15 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.example.listas.ui.theme.ListasTheme
+import kotlinx.coroutines.launch
+import retrofit2.Response
+import retrofit2.Retrofit
+import retrofit2.converter.gson.GsonConverterFactory
+import retrofit2.converter.scalars.ScalarsConverterFactory
+import retrofit2.http.Field
+import retrofit2.http.FormUrlEncoded
+import retrofit2.http.GET
+import retrofit2.http.POST
 import java.util.Date
 import java.text.SimpleDateFormat
 import java.util.*
@@ -110,6 +121,8 @@ fun LoginContent(navController: NavHostController, modifier: Modifier) {
     var usuario by remember { mutableStateOf("") }
     var contrasena by remember { mutableStateOf("") }
 
+    val scope = rememberCoroutineScope() //envíos de petición
+
     Column(
         modifier = modifier
             .fillMaxSize()
@@ -121,18 +134,18 @@ fun LoginContent(navController: NavHostController, modifier: Modifier) {
 
         Button(
             onClick = {
-                val usuarioCorrecto = "Admin"
-                val contrasenaCorrecta = "123"
-
-
-                if (usuario == usuarioCorrecto && contrasena == contrasenaCorrecta) {
-
-                    Toast.makeText(context, "¡Bienvenido, ${usuario}!", Toast.LENGTH_SHORT).show()
-                    navController.navigate("Menu")
-                } else {
-
-                    Toast.makeText(context, "Usuario o contraseña incorrectos", Toast.LENGTH_LONG)
-                        .show()
+                scope.launch {
+                    try {
+                        api.agregarRegistro(dato1, dato2.toDouble(), dato3.toInt())
+                        Toast.makeText(context, "Registro agregado con éxito.", Toast.LENGTH_SHORT).show()
+                        // El código comentado sirve para cuando queramos leer respuestas de texto después de enviar información
+                        // Por supuesto hay que añadir el método a la apiService con el tipo de dato correspondiente
+                        // val respuesta : Response<String> = api.hacerOtraCosa(dato1, dato2.toDouble())
+                        // respuesta.body()
+                    }
+                    catch (e: Exception) {
+                        Log.e("API", "Error al agregar registro: ${e.message}")
+                    }
                 }
             },
             colors = ButtonDefaults.buttonColors(
@@ -181,19 +194,21 @@ fun LoginContent(navController: NavHostController, modifier: Modifier) {
         Button(
             onClick = {
 
-                val usuarioCorrecto = "Admin"
-                val contrasenaCorrecta = "123"
+                scope.launch {
+                    try {
+                        api.agregarRegistro(dato1, dato2.toDouble(), dato3.toInt())
+                        Toast.makeText(context, "Inicio de sesión con éxito.", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(context, "Inicio de sesión con éxito.", Toast.LENGTH_SHORT).show()
+                        val respuesta : Response<String> = api.hacerOtraCosa(dato1, dato2.toDouble())
+                        if (respuesta.body() == "correcto") {
 
-
-                if (usuario == usuarioCorrecto && contrasena == contrasenaCorrecta) {
-
-                    Toast.makeText(context, "¡Bienvenido, ${usuario}!", Toast.LENGTH_SHORT).show()
-                    navController.navigate("menu")
-                } else {
-
-                    Toast.makeText(context, "Usuario o contraseña incorrectos", Toast.LENGTH_LONG)
-                        .show()
+                        }
+                    }
+                    catch (e: Exception) {
+                        Log.e("API", "Error al agregar registro: ${e.message}")
+                    }
                 }
+
             },
             modifier = Modifier.align(Alignment.End)
         ) {
@@ -314,6 +329,39 @@ fun MenuContent(navController: NavHostController, modifier: Modifier) {
 
     }
 }
+
+data class ModeloRegistro(
+    val dato1: String,
+    val dato2: Double,
+    val dato3: Int
+)
+interface ApiService {
+    @POST("servicio.php?iniciarSesion")
+    @FormUrlEncoded
+    suspend fun iniciarSesion(
+        @Field("usuario") usuario: String,
+        @Field("contrasena") contrasena: String,
+    ): Response<String>
+
+    @GET("servicio.php?registros")
+    suspend fun registros(): List<ModeloRegistro>
+
+    @POST("servicio.php?agregarRegistro")
+    @FormUrlEncoded
+    suspend fun agregarRegistro(
+        @Field("dato1") dato1: String,
+        @Field("dato2") dato2: Double,
+        @Field("dato3") dato3: Int
+    ): Response<String>
+}
+
+val retrofit = Retrofit.Builder()
+    .baseUrl("https://ampland-audio-shell-measures.trycloudflare.com")
+    .addConverterFactory(ScalarsConverterFactory.create())
+    .addConverterFactory(GsonConverterFactory.create())
+    .build()
+
+val api = retrofit.create(ApiService::class.java)
 
 @Composable
 fun LstLibrosContent(navController: NavHostController, modifier: Modifier) {
