@@ -81,6 +81,39 @@ import java.text.SimpleDateFormat
 import java.util.*
 import java.util.Locale
 
+data class ModeloRegistro(
+    val dato1: String,
+    val dato2: Double,
+    val dato3: Int
+)
+interface ApiService {
+    @POST("servicio.php?iniciarSesion")
+    @FormUrlEncoded
+    suspend fun iniciarSesion(
+        @Field("usuario") usuario: String,
+        @Field("contrasena") contrasena: String,
+    ): Response<String>
+
+    @GET("servicio.php?registros")
+    suspend fun registros(): List<ModeloRegistro>
+
+    @POST("servicio.php?agregarRegistro")
+    @FormUrlEncoded
+    suspend fun agregarRegistro(
+        @Field("dato1") dato1: String,
+        @Field("dato2") dato2: Double,
+        @Field("dato3") dato3: Int
+    ): Response<String>
+}
+
+val retrofit = Retrofit.Builder()
+    .baseUrl("https://inspection-browser-regulatory-cons.trycloudflare.com/")
+    .addConverterFactory(ScalarsConverterFactory.create())
+    .addConverterFactory(GsonConverterFactory.create())
+    .build()
+
+val api = retrofit.create(ApiService::class.java)
+
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -103,7 +136,7 @@ fun AppContent(modifier: Modifier = Modifier) {
 
     NavHost(
         navController = navController,
-        startDestination = "frmCalificaciones"
+        startDestination = "Login"
     ) {
         composable("Login") { LoginContent(navController, modifier) }
         composable("Menu") { MenuContent(navController, modifier) }
@@ -135,17 +168,18 @@ fun LoginContent(navController: NavHostController, modifier: Modifier) {
         Button(
             onClick = {
                 scope.launch {
-                    try {
-                        api.agregarRegistro(dato1, dato2.toDouble(), dato3.toInt())
-                        Toast.makeText(context, "Registro agregado con éxito.", Toast.LENGTH_SHORT).show()
-                        // El código comentado sirve para cuando queramos leer respuestas de texto después de enviar información
-                        // Por supuesto hay que añadir el método a la apiService con el tipo de dato correspondiente
-                        // val respuesta : Response<String> = api.hacerOtraCosa(dato1, dato2.toDouble())
-                        // respuesta.body()
-                    }
-                    catch (e: Exception) {
-                        Log.e("API", "Error al agregar registro: ${e.message}")
-                    }
+
+                        val respuesta: Response<String> = api.iniciarSesion(usuario, contrasena)
+                        val cuerpo = respuesta.body()?.trim()
+
+                        Log.d("API", "Respuesta del servidor: $cuerpo")
+
+                        if (cuerpo == "correcto") {
+                            Toast.makeText(context, "Inicio de sesión con éxito.", Toast.LENGTH_SHORT).show()
+                            navController.navigate("Menu")
+                        } else {
+                            Toast.makeText(context, "Inicio de sesión fallido: $cuerpo", Toast.LENGTH_SHORT).show()
+                        }
                 }
             },
             colors = ButtonDefaults.buttonColors(
@@ -196,15 +230,15 @@ fun LoginContent(navController: NavHostController, modifier: Modifier) {
 
                 scope.launch {
                     try {
-                        api.agregarRegistro(dato1, dato2.toDouble(), dato3.toInt())
-                        Toast.makeText(context, "Inicio de sesión con éxito.", Toast.LENGTH_SHORT).show()
-                        Toast.makeText(context, "Inicio de sesión con éxito.", Toast.LENGTH_SHORT).show()
-                        val respuesta : Response<String> = api.hacerOtraCosa(dato1, dato2.toDouble())
+                        val respuesta : Response<String> = api.iniciarSesion(usuario, contrasena)
                         if (respuesta.body() == "correcto") {
-
+                            Toast.makeText(context, "Inicio de sesión con éxito.", Toast.LENGTH_SHORT).show()
+                            navController.navigate("Menu")
+                        } else {
+                            Toast.makeText(context, "Inicio de sesión fallido.", Toast.LENGTH_SHORT).show()
                         }
-                    }
-                    catch (e: Exception) {
+
+                    } catch (e: Exception) {
                         Log.e("API", "Error al agregar registro: ${e.message}")
                     }
                 }
@@ -330,38 +364,6 @@ fun MenuContent(navController: NavHostController, modifier: Modifier) {
     }
 }
 
-data class ModeloRegistro(
-    val dato1: String,
-    val dato2: Double,
-    val dato3: Int
-)
-interface ApiService {
-    @POST("servicio.php?iniciarSesion")
-    @FormUrlEncoded
-    suspend fun iniciarSesion(
-        @Field("usuario") usuario: String,
-        @Field("contrasena") contrasena: String,
-    ): Response<String>
-
-    @GET("servicio.php?registros")
-    suspend fun registros(): List<ModeloRegistro>
-
-    @POST("servicio.php?agregarRegistro")
-    @FormUrlEncoded
-    suspend fun agregarRegistro(
-        @Field("dato1") dato1: String,
-        @Field("dato2") dato2: Double,
-        @Field("dato3") dato3: Int
-    ): Response<String>
-}
-
-val retrofit = Retrofit.Builder()
-    .baseUrl("https://ampland-audio-shell-measures.trycloudflare.com")
-    .addConverterFactory(ScalarsConverterFactory.create())
-    .addConverterFactory(GsonConverterFactory.create())
-    .build()
-
-val api = retrofit.create(ApiService::class.java)
 
 @Composable
 fun LstLibrosContent(navController: NavHostController, modifier: Modifier) {
