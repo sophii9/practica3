@@ -68,6 +68,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.example.listas.ui.theme.ListasTheme
 import kotlinx.coroutines.launch
+import okhttp3.OkHttpClient
 import retrofit2.Response
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
@@ -80,16 +81,19 @@ import java.util.Date
 import java.text.SimpleDateFormat
 import java.util.*
 import java.util.Locale
+import java.util.concurrent.TimeUnit
 
 data class ModeloRegistro(
     val dato1: String,
     val dato2: Double,
     val dato3: Int
 )
+
 interface ApiService {
-    @POST("servicio.php?iniciarSesion")
+    @POST("login.php")
     @FormUrlEncoded
     suspend fun iniciarSesion(
+        @Field("iniciarSesion") iniciarSesion: String = "true",
         @Field("usuario") usuario: String,
         @Field("contrasena") contrasena: String,
     ): Response<String>
@@ -97,22 +101,57 @@ interface ApiService {
     @GET("servicio.php?registros")
     suspend fun registros(): List<ModeloRegistro>
 
-    @POST("servicio.php?agregarRegistro")
+    @POST("servicio.php")
     @FormUrlEncoded
     suspend fun agregarRegistro(
-        @Field("dato1") dato1: String,
-        @Field("dato2") dato2: Double,
-        @Field("dato3") dato3: Int
+        @Field("titulo") titulo: String,
+        @Field("autor") autor: String,
+        @Field("fecha") fecha: String, //lo convertiré al llamar la función
+        @Field("resena") resena: String
+    ): Response<String>
+
+    @POST("servicio.php")
+    @FormUrlEncoded
+    suspend fun modificarRegistro(
+        @Field("id") id: Int,
+        @Field("titulo") titulo: String,
+        @Field("autor") autor: String,
+        @Field("fecha") fecha: String, //lo convertiré al llamar la función
+        @Field("resena") resena: String
+    ): Response<String>
+
+    @POST("servicio.php")
+    @FormUrlEncoded
+    suspend fun eliminarRegistro(
+        @Field("id") id: Int,
     ): Response<String>
 }
 
 val retrofit = Retrofit.Builder()
-    .baseUrl("https://inspection-browser-regulatory-cons.trycloudflare.com/")
+    .baseUrl("http://10.0.2.2/")
     .addConverterFactory(ScalarsConverterFactory.create())
     .addConverterFactory(GsonConverterFactory.create())
+    .client(createOkHttpClient()) // Agregar configuración de timeout
     .build()
 
+fun createOkHttpClient(): OkHttpClient {
+    return OkHttpClient.Builder()
+        .connectTimeout(30, TimeUnit.SECONDS)
+        .readTimeout(30, TimeUnit.SECONDS)
+        .writeTimeout(30, TimeUnit.SECONDS)
+        .addInterceptor { chain ->
+            val request = chain.request()
+            Log.d("API_REQUEST", "URL: ${request.url}")
+            Log.d("API_REQUEST", "Method: ${request.method}")
+            val response = chain.proceed(request)
+            Log.d("API_RESPONSE", "Code: ${response.code}")
+            response
+        }
+        .build()
+}
+
 val api = retrofit.create(ApiService::class.java)
+
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -136,7 +175,7 @@ fun AppContent(modifier: Modifier = Modifier) {
 
     NavHost(
         navController = navController,
-        startDestination = "Login"
+        startDestination = "lstLibros"
     ) {
         composable("Login") { LoginContent(navController, modifier) }
         composable("Menu") { MenuContent(navController, modifier) }
@@ -164,24 +203,37 @@ fun LoginContent(navController: NavHostController, modifier: Modifier) {
         horizontalAlignment = Alignment.Start,
         verticalArrangement = Arrangement.Top
     ) {
-
         Button(
             onClick = {
                 scope.launch {
+                    try {
+                        Log.d("API", "Iniciando petición...")
+                        Log.d("API", "Usuario: $usuario")
 
-                        val respuesta: Response<String> = api.iniciarSesion(usuario, contrasena)
+                        val respuesta: Response<String> = api.iniciarSesion(
+                            usuario = usuario,
+                            contrasena = contrasena
+                        )
+
+                        Log.d("API", "Código respuesta: ${respuesta.code()}")
+                        Log.d("API", "Respuesta completa: ${respuesta.body()}")
+                        Log.d("API", "Error body: ${respuesta.errorBody()?.string()}")
+
                         val cuerpo = respuesta.body()?.trim()
 
-                        Log.d("API", "Respuesta del servidor: $cuerpo")
-
                         if (cuerpo == "correcto") {
-                            Toast.makeText(context, "Inicio de sesión con éxito.", Toast.LENGTH_SHORT).show()
+                            Toast.makeText(context, "Inicio de sesión exitoso", Toast.LENGTH_SHORT).show()
                             navController.navigate("Menu")
                         } else {
-                            Toast.makeText(context, "Inicio de sesión fallido: $cuerpo", Toast.LENGTH_SHORT).show()
+                            Toast.makeText(context, "Error: $cuerpo", Toast.LENGTH_LONG).show()
                         }
+                    } catch (e: Exception) {
+                        Log.e("API", "Error en la petición: ${e.message}", e)
+                        Toast.makeText(context, "Error de conexión: ${e.message}", Toast.LENGTH_LONG).show()
+                    }
                 }
             },
+
             colors = ButtonDefaults.buttonColors(
                 containerColor = Color.Transparent,
                 contentColor = Color.Blue
@@ -230,12 +282,25 @@ fun LoginContent(navController: NavHostController, modifier: Modifier) {
 
                 scope.launch {
                     try {
-                        val respuesta : Response<String> = api.iniciarSesion(usuario, contrasena)
-                        if (respuesta.body() == "correcto") {
-                            Toast.makeText(context, "Inicio de sesión con éxito.", Toast.LENGTH_SHORT).show()
+                        Log.d("API", "Iniciando petición...")
+                        Log.d("API", "Usuario: $usuario")
+
+                        val respuesta: Response<String> = api.iniciarSesion(
+                            usuario = usuario,
+                            contrasena = contrasena
+                        )
+
+                        Log.d("API", "Código respuesta: ${respuesta.code()}")
+                        Log.d("API", "Respuesta completa: ${respuesta.body()}")
+                        Log.d("API", "Error body: ${respuesta.errorBody()?.string()}")
+
+                        val cuerpo = respuesta.body()?.trim()
+
+                        if (cuerpo == "correcto") {
+                            Toast.makeText(context, "Inicio de sesión exitoso", Toast.LENGTH_SHORT).show()
                             navController.navigate("Menu")
                         } else {
-                            Toast.makeText(context, "Inicio de sesión fallido.", Toast.LENGTH_SHORT).show()
+                            Toast.makeText(context, "Error: $cuerpo", Toast.LENGTH_LONG).show()
                         }
 
                     } catch (e: Exception) {
@@ -419,7 +484,26 @@ fun LstLibrosContent(navController: NavHostController, modifier: Modifier) {
     ) {
         Button(
             onClick = {
-                navController.navigate("Menu")
+                scope.launch {
+                    try {
+                        var respuesta: Response<String>
+                        if (id == "") {
+                            respuesta =
+                                api.agregarRegistro(titulo, autor, fecha, resena)
+                        }
+                        else {
+                            respuesta =
+                            api.agregarRegistro(titulo, autor, fecha, resena)
+                        }
+
+                            libros.add(Libro(respuesta.body()?.toInt()?: 0, titulo, autor, fecha, resena))
+                            Toast.makeText(context, "Agregado de libro con éxito", Toast.LENGTH_LONG).show()
+
+                    } catch (e: Exception) {
+                        Log.e("API", "Error al intentar iniciar sesión: $(e.message)")
+                        }
+                }
+
             },
             colors = ButtonDefaults.buttonColors(
                 containerColor = Color.Transparent,
@@ -467,7 +551,7 @@ fun LstLibrosContent(navController: NavHostController, modifier: Modifier) {
             Text("Fecha", modifier = Modifier.width(100.dp), fontWeight = FontWeight.Bold)
             Text("Reseña", modifier = Modifier.width(100.dp), fontWeight = FontWeight.Bold)
             Text("Eliminar", modifier = Modifier.width(100.dp), fontWeight = FontWeight.Bold)
-
+            Text("Modificar", modifier = Modifier.width(100.dp), fontWeight = FontWeight.Bold)
         }
         Divider()
         libros.forEachIndexed { index, libro ->
@@ -493,18 +577,53 @@ fun LstLibrosContent(navController: NavHostController, modifier: Modifier) {
                     text = libro.resena,
                     modifier = Modifier.width(200.dp)
                 )
+            }
+        }
+        Divider()
+
                 Spacer(modifier = Modifier.width(10.dp))
                 Button(onClick = {
-                    libros.removeAt(index)
+                    scope.launch {
+                        try {
 
+
+                            val respuesta: Response<String> = api.eliminarRegistro(libro.idLibro)
+
+                            if (respuesta.body() == "correcto") {
+                                Toast.makeText(
+                                    context,
+                                    "Eliminado de libro con éxito",
+                                    Toast.LENGTH_LONG
+                                ).show()
+                                libros.removeAt(index)
+                            } else {
+                                Toast.makeText(
+                                    context,
+                                    "Error al eliminar el libro",
+                                    Toast.LENGTH_LONG
+                                ).show()
+                            }
+
+                            libros.removeAt(index)
+                        } catch (e: Exception) {
+                            Log.e("API", "Error al intentar eliminar: $(e.message)")
+                        }
+                    }
                 }) {
                     Text("Eliminar")
                 }
-            }
-            Divider()
+                Button(onClick = {
+                            id      = libros[index].id.toString()
+                            titulo  = libros[index].titulo
+                            autor   = libros[index].autor
+                            fecha   = formato.format(libros[index].fecha).toString()
+                            resena  = libros[index].resena
+                }) {
+                    Text("Modificar")
+                }
         }
     }
-}
+
 
 @Composable
 fun FrmLibrosContent(navController: NavHostController, modifier: Modifier) {
@@ -549,8 +668,9 @@ fun FrmLibrosContent(navController: NavHostController, modifier: Modifier) {
 
     val scrollState = rememberScrollState()
 
+    var id: String by remember { mutableStateOf("") }
     var titulo by remember { mutableStateOf("") } //datos línea Usuario
-    var autor by remember { mutableStateOf("") }
+    var autor by remember { mutableStateOf("") } //var titulo: String by remember { mutableStateOf("") }
     var fecha by remember { mutableStateOf("") }
     var resena by remember { mutableStateOf("") }
 
@@ -586,6 +706,15 @@ fun FrmLibrosContent(navController: NavHostController, modifier: Modifier) {
         Spacer(modifier = Modifier.height(16.dp))
 
 
+        Spacer(modifier = Modifier.height(16.dp))
+
+        Text(text = "ID:")
+        TextField(
+            value = id,
+            onValueChange = { id = it },
+            modifier = Modifier.fillMaxWidth(),
+            readOnly = true
+        )
         Spacer(modifier = Modifier.height(16.dp))
 
 
