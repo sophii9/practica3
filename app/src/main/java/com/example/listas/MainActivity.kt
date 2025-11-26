@@ -23,11 +23,13 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.wrapContentSize
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Divider
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -43,11 +45,13 @@ import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldColors
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -77,6 +81,7 @@ import retrofit2.http.Field
 import retrofit2.http.FormUrlEncoded
 import retrofit2.http.GET
 import retrofit2.http.POST
+import retrofit2.http.Query
 import java.util.Date
 import java.text.SimpleDateFormat
 import java.util.*
@@ -87,6 +92,27 @@ data class ModeloRegistro(
     val dato1: String,
     val dato2: Double,
     val dato3: Int
+)
+
+data class CalificacionResponse(
+    val id: Int,
+    val id_libro: Int,
+    val libro: String,
+    val calificacion: Int,
+    val resena: String
+)
+
+data class Libro(
+    val id: Int,
+    val titulo: String,
+    val autor: String,
+    val fecha: String,
+    val resena: String
+)
+
+data class LibroSimple(
+    val id: Int,
+    val titulo: String
 )
 
 interface ApiService {
@@ -125,6 +151,67 @@ interface ApiService {
     suspend fun eliminarRegistro(
         @Field("id") id: Int,
     ): Response<String>
+
+    @GET("servicio.php?obtenerLibros")
+    suspend fun obtenerLibros(): List<Libro>
+
+    @GET("servicio.php?obtenerLibro")
+    suspend fun obtenerLibro(@Query("id") id: Int): Libro
+
+    @POST("servicio.php?agregarLibro")
+    @FormUrlEncoded
+    suspend fun agregarLibro(
+        @Field("titulo") titulo: String,
+        @Field("autor") autor: String,
+        @Field("fecha") fecha: String,
+        @Field("resena") resena: String
+    ): Response<String>
+
+    @POST("servicio.php?modificarLibro")
+    @FormUrlEncoded
+    suspend fun modificarLibro(
+        @Field("id") id: Int,
+        @Field("titulo") titulo: String,
+        @Field("autor") autor: String,
+        @Field("fecha") fecha: String,
+        @Field("resena") resena: String
+    ): Response<String>
+
+    @POST("servicio.php?eliminarLibro")
+    @FormUrlEncoded
+    suspend fun eliminarLibro(
+        @Field("id") id: Int
+    ): Response<String>
+
+    @GET("servicio.php?obtenerCalificaciones")
+    suspend fun obtenerCalificaciones(): List<CalificacionResponse>
+
+    @GET("servicio.php?obtenerCalificacion")
+    suspend fun obtenerCalificacion(@Query("id") id: Int): CalificacionResponse
+
+    @POST("servicio.php?agregarCalificacion")
+    @FormUrlEncoded
+    suspend fun agregarCalificacion(
+        @Field("id_libro") idLibro: Int,
+        @Field("calificacion") calificacion: Int,
+        @Field("resena") resena: String
+    ): Response<String>
+
+    @POST("servicio.php?modificarCalificacion")
+    @FormUrlEncoded
+    suspend fun modificarCalificacion(
+        @Field("id") id: Int,
+        @Field("id_libro") idLibro: Int,
+        @Field("calificacion") calificacion: Int,
+        @Field("resena") resena: String
+    ): Response<String>
+
+    @POST("servicio.php?eliminarCalificacion")
+    @FormUrlEncoded
+    suspend fun eliminarCalificacion(
+        @Field("id") id: Int
+    ): Response<String>
+
 }
 
 val retrofit = Retrofit.Builder()
@@ -152,7 +239,6 @@ fun createOkHttpClient(): OkHttpClient {
 
 val api = retrofit.create(ApiService::class.java)
 
-
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -175,7 +261,7 @@ fun AppContent(modifier: Modifier = Modifier) {
 
     NavHost(
         navController = navController,
-        startDestination = "lstLibros"
+        startDestination = "Login"
     ) {
         composable("Login") { LoginContent(navController, modifier) }
         composable("Menu") { MenuContent(navController, modifier) }
@@ -429,480 +515,267 @@ fun MenuContent(navController: NavHostController, modifier: Modifier) {
     }
 }
 
-
 @Composable
-fun LstLibrosContent(navController: NavHostController, modifier: Modifier) {
-    data class Libro(
-        val idLibro: Int,
-        val titulo: String,
-        val autor: String,
-        val fecha: Date,
-        val resena: String
-    )
-
-    val formato: SimpleDateFormat = SimpleDateFormat("dd/MM/yyyy")
-    val libros = remember {
-        mutableStateListOf(
-            Libro(
-                1,
-                "Tan Poca Vida",
-                "Hanya Yanagihara",
-                formato.parse("10/03/2015")!!,
-                resena = "Una historia intensa y conmovedora."
-            ),
-            Libro(
-                2,
-                "Orgullo y Prejuicio",
-                "Jane Austen",
-                formato.parse("28/01/1813")!!,
-                resena = "Un clásico de la literatura romántica."
-            ),
-            Libro(
-                3,
-                "50 leyes del poder",
-                "Robert Greene",
-                formato.parse("01/09/1998")!!,
-                resena = "Estrategias para entender el poder y la influencia."
-            )
-        )
-    }
-
-
-    // productos[index] = Producto(nombre, precio, existencias)
-    // productos[2] = Producto("Florentinas Fresa", 20.0, 5)
-
+fun LstLibrosContent(navController: NavHostController, modifier: Modifier = Modifier) {
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
     val scrollState = rememberScrollState()
 
-    Column(
-        modifier = modifier
-            .fillMaxSize()
-            .padding(24.dp)
-            .horizontalScroll(scrollState)
-            .padding(8.dp),
-        horizontalAlignment = Alignment.Start,
-        verticalArrangement = Arrangement.Top
-    ) {
-        Button(
-            onClick = {
-                scope.launch {
-                    try {
-                        var respuesta: Response<String>
-                        if (id == "") {
-                            respuesta =
-                                api.agregarRegistro(titulo, autor, fecha, resena)
-                        }
-                        else {
-                            respuesta =
-                            api.agregarRegistro(titulo, autor, fecha, resena)
-                        }
+    var libros by remember { mutableStateOf<List<Libro>>(emptyList()) }
+    var isLoading by remember { mutableStateOf(true) }
 
-                            libros.add(Libro(respuesta.body()?.toInt()?: 0, titulo, autor, fecha, resena))
-                            Toast.makeText(context, "Agregado de libro con éxito", Toast.LENGTH_LONG).show()
-
-                    } catch (e: Exception) {
-                        Log.e("API", "Error al intentar iniciar sesión: $(e.message)")
-                        }
-                }
-
-            },
-            colors = ButtonDefaults.buttonColors(
-                containerColor = Color.Transparent,
-                contentColor = Color.Blue
-            ),
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Text(
-                "Menú",
-                style = TextStyle(textDecoration = TextDecoration.Underline),
-                textAlign = TextAlign.Start,
-                modifier = Modifier.fillMaxWidth()
-            )
-        }
-        Spacer(modifier = Modifier.height(16.dp))
-
-        Button(
-            onClick = {
-                libros.add(
-                    Libro(
-                        4, "Deja de ser tú",
-                        "Joe Dispenza", formato.parse("31/12/2016")!!,
-                        resena = "Es una guía poderosa para sanar, romper patrones y crear una nueva versión de ti."
-                    )
-                )
-            },
-            colors = ButtonDefaults.buttonColors(
-                containerColor = Color.Black,
-                contentColor = Color.White
-            ),
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Text(
-                "Agregar Libro de Prueba", //lo que me aparece en recuadro gris en el blog no aparece
-                style = TextStyle(textDecoration = TextDecoration.Underline),
-                textAlign = TextAlign.Start,
-                modifier = Modifier.fillMaxWidth()
-            )
-        }
-        Spacer(modifier = Modifier.height(16.dp))
-
-        Row {
-            Text("Título", modifier = Modifier.width(150.dp), fontWeight = FontWeight.Bold)
-            Text("Autor", modifier = Modifier.width(100.dp), fontWeight = FontWeight.Bold)
-            Text("Fecha", modifier = Modifier.width(100.dp), fontWeight = FontWeight.Bold)
-            Text("Reseña", modifier = Modifier.width(100.dp), fontWeight = FontWeight.Bold)
-            Text("Eliminar", modifier = Modifier.width(100.dp), fontWeight = FontWeight.Bold)
-            Text("Modificar", modifier = Modifier.width(100.dp), fontWeight = FontWeight.Bold)
-        }
-        Divider()
-        libros.forEachIndexed { index, libro ->
-            val bgColor = if (index % 2 == 0) Color(0xFFF5F5F5) else Color.White
-
-            Row(
-                modifier = Modifier
-                    .background(bgColor)
-            ) {
-                Text(
-                    text = libro.titulo,
-                    modifier = Modifier.width(150.dp)
-                )
-                Text(
-                    text = libro.autor,
-                    modifier = Modifier.width(100.dp)
-                )
-                Text(
-                    text = formato.format(libro.fecha),
-                    modifier = Modifier.width(100.dp)
-                )
-                Text(
-                    text = libro.resena,
-                    modifier = Modifier.width(200.dp)
-                )
+    LaunchedEffect(Unit) {
+        scope.launch {
+            try {
+                libros = api.obtenerLibros()
+            } catch (e: Exception) {
+                Log.e("API", "Error al obtener libros: ${e.message}")
+                Toast.makeText(context, "Error al cargar libros", Toast.LENGTH_SHORT).show()
+            } finally {
+                isLoading = false
             }
         }
-        Divider()
+    }
 
-                Spacer(modifier = Modifier.width(10.dp))
-                Button(onClick = {
-                    scope.launch {
-                        try {
+    Column(modifier = modifier.fillMaxSize().padding(24.dp).verticalScroll(scrollState).padding(8.dp), horizontalAlignment = Alignment.Start, verticalArrangement = Arrangement.Top) {
+        Button(onClick = { navController.navigate("Menu") }, colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent, contentColor = Color.Blue), modifier = Modifier.fillMaxWidth()) {
+            Text("Menú", style = TextStyle(textDecoration = TextDecoration.Underline), textAlign = TextAlign.Start, modifier = Modifier.fillMaxWidth())
+        }
+        Spacer(modifier = Modifier.height(16.dp))
 
+        Text(text = "Lista de Libros", fontSize = 20.sp, fontWeight = FontWeight.ExtraBold, modifier = Modifier.align(Alignment.CenterHorizontally))
+        Spacer(modifier = Modifier.height(16.dp))
 
-                            val respuesta: Response<String> = api.eliminarRegistro(libro.idLibro)
+        Button(onClick = { navController.navigate("frmLibros/0") }, colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF4CAF50), contentColor = Color.White), modifier = Modifier.align(Alignment.End)) {
+            Text("+ Agregar Libro")
+        }
+        Spacer(modifier = Modifier.height(16.dp))
 
-                            if (respuesta.body() == "correcto") {
-                                Toast.makeText(
-                                    context,
-                                    "Eliminado de libro con éxito",
-                                    Toast.LENGTH_LONG
-                                ).show()
-                                libros.removeAt(index)
-                            } else {
-                                Toast.makeText(
-                                    context,
-                                    "Error al eliminar el libro",
-                                    Toast.LENGTH_LONG
-                                ).show()
+        if (isLoading) {
+            CircularProgressIndicator(modifier = Modifier.align(Alignment.CenterHorizontally))
+        } else {
+            val horizontalScrollState = rememberScrollState()
+            Column(modifier = Modifier.horizontalScroll(horizontalScrollState)) {
+                Row {
+                    Text("Título", modifier = Modifier.width(150.dp), fontWeight = FontWeight.Bold)
+                    Text("Autor", modifier = Modifier.width(150.dp), fontWeight = FontWeight.Bold)
+                    Text("Fecha", modifier = Modifier.width(100.dp), fontWeight = FontWeight.Bold)
+                    Text("Reseña", modifier = Modifier.width(200.dp), fontWeight = FontWeight.Bold)
+                    Text("Acciones", modifier = Modifier.width(200.dp), fontWeight = FontWeight.Bold)
+                }
+                Divider()
+                libros.forEachIndexed { index, libro ->
+                    val bgColor = if (index % 2 == 0) Color(0xFFF6F7F8) else Color.White
+                    Row(modifier = Modifier.background(bgColor).padding(vertical = 4.dp)) {
+                        Text(text = libro.titulo, modifier = Modifier.width(150.dp))
+                        Text(text = libro.autor, modifier = Modifier.width(150.dp))
+                        Text(text = libro.fecha, modifier = Modifier.width(100.dp))
+                        Text(text = libro.resena, modifier = Modifier.width(200.dp))
+                        Row(modifier = Modifier.width(200.dp)) {
+                            Button(onClick = { navController.navigate("frmLibros/${libro.id}") }, colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2196F3)), modifier = Modifier.padding(end = 4.dp)) {
+                                Text("Editar", fontSize = 12.sp)
                             }
-
-                            libros.removeAt(index)
-                        } catch (e: Exception) {
-                            Log.e("API", "Error al intentar eliminar: $(e.message)")
+                            Button(onClick = {
+                                scope.launch {
+                                    try {
+                                        val response = api.eliminarLibro(libro.id)
+                                        if (response.body() == "success") {
+                                            Toast.makeText(context, "Libro eliminado", Toast.LENGTH_SHORT).show()
+                                            libros = api.obtenerLibros()
+                                        } else {
+                                            Toast.makeText(context, "No se pudo eliminar", Toast.LENGTH_SHORT).show()
+                                        }
+                                    } catch (e: Exception) {
+                                        Toast.makeText(context, "Error al eliminar", Toast.LENGTH_SHORT).show()
+                                    }
+                                }
+                            }, colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE53935))) {
+                                Text("Eliminar", fontSize = 12.sp)
+                            }
                         }
                     }
-                }) {
-                    Text("Eliminar")
+                    Divider()
                 }
-                Button(onClick = {
-                            id      = libros[index].id.toString()
-                            titulo  = libros[index].titulo
-                            autor   = libros[index].autor
-                            fecha   = formato.format(libros[index].fecha).toString()
-                            resena  = libros[index].resena
-                }) {
-                    Text("Modificar")
-                }
-        }
-    }
-
-
-@Composable
-fun FrmLibrosContent(navController: NavHostController, modifier: Modifier) {
-    data class Libro(
-        val idLibro: Int,
-        val titulo: String,
-        val autor: String,
-        val fecha: Date,
-        val resena: String
-    )
-
-    val formato: SimpleDateFormat = SimpleDateFormat("dd/MM/yyyy")
-    val libros = remember {
-        mutableStateListOf(
-            Libro(
-                1,
-                "Tan Poca Vida",
-                "Hanya Yanagihara",
-                formato.parse("10/03/2015")!!,
-                resena = "Una historia intensa y conmovedora."
-            ),
-            Libro(
-                2,
-                "Orgullo y Prejuicio",
-                "Jane Austen",
-                formato.parse("28/01/1813")!!,
-                resena = "Un clásico de la literatura romántica."
-            ),
-            Libro(
-                3,
-                "50 leyes del poder",
-                "Robert Greene",
-                formato.parse("01/09/1998")!!,
-                resena = "Estrategias para entender el poder y la influencia."
-            )
-        )
-    }
-    // productos[index] = Producto(nombre, precio, existencias)
-    // productos[2] = Producto("Florentinas Fresa", 20.0, 5)
-
-    val context = LocalContext.current
-
-    val scrollState = rememberScrollState()
-
-    var id: String by remember { mutableStateOf("") }
-    var titulo by remember { mutableStateOf("") } //datos línea Usuario
-    var autor by remember { mutableStateOf("") } //var titulo: String by remember { mutableStateOf("") }
-    var fecha by remember { mutableStateOf("") }
-    var resena by remember { mutableStateOf("") }
-
-    Column(
-        modifier = modifier
-            .fillMaxSize()
-            .padding(24.dp)
-            .horizontalScroll(scrollState)
-            .padding(8.dp),
-        horizontalAlignment = Alignment.Start,
-        verticalArrangement = Arrangement.Top
-    ) {
-
-        val scrollState = rememberScrollState()
-
-        Button(
-            onClick = {
-                navController.navigate("lstLibros")
-            },
-            colors = ButtonDefaults.buttonColors(
-                containerColor = Color.Transparent,
-                contentColor = Color.Blue
-            ),
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Text(
-                "Tabla de Libros",
-                style = TextStyle(textDecoration = TextDecoration.Underline),
-                textAlign = TextAlign.Start,
-                modifier = Modifier.fillMaxWidth()
-            )
-        }
-        Spacer(modifier = Modifier.height(16.dp))
-
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        Text(text = "ID:")
-        TextField(
-            value = id,
-            onValueChange = { id = it },
-            modifier = Modifier.fillMaxWidth(),
-            readOnly = true
-        )
-        Spacer(modifier = Modifier.height(16.dp))
-
-
-        Text(text = "Título:")
-        TextField(
-            value = titulo,
-            onValueChange = { titulo = it },
-            placeholder = { Text("Ingresa el Título:") },
-            modifier = Modifier.fillMaxWidth()
-        )
-        Spacer(modifier = Modifier.height(16.dp))
-
-        Text(text = "Autor")
-        TextField(
-            value = autor,
-            onValueChange = { autor = it },
-            placeholder = { Text("Ingresa el Autor:") },
-            modifier = Modifier.fillMaxWidth()
-        )
-        Spacer(modifier = Modifier.height(16.dp))
-
-        Text(text = "Fecha:")
-        TextField(
-            value = fecha,
-            onValueChange = { fecha = it },
-            placeholder = { Text("Ingresa la fecha en 8 dígitos:") },
-            modifier = Modifier.fillMaxWidth()
-        )
-        Spacer(modifier = Modifier.height(16.dp))
-
-        Text(text = "Reseña:")
-        TextField(
-            value = resena,
-            onValueChange = { resena = it },
-            placeholder = { Text("Ingresa una reseña:") },
-            modifier = Modifier.fillMaxWidth()
-        )
-        Spacer(modifier = Modifier.height(16.dp))
-
-
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.End
-        )
-
-        {
-            Button(
-                onClick = {
-                    Toast.makeText(context, "Titulo: ${titulo}", Toast.LENGTH_SHORT).show()
-                    Toast.makeText(context, "Autor: ${autor}", Toast.LENGTH_SHORT).show()
-                    Toast.makeText(context, "Fecha: ${fecha}", Toast.LENGTH_SHORT).show()
-                    Toast.makeText(context, "Reseña: ${resena}", Toast.LENGTH_SHORT).show()
-                },
-
-                ) {
-                Text("Enviar")
             }
         }
     }
 }
 
-
 @Composable
-fun LstCalificacionesContent(navController: NavHostController, modifier: Modifier) {
-    data class Calificacion(
-        val idCalificacion: Int,
-        val libro: String,
-        val calificacion: Int,
-        val resena: String
-    )
-
-    val calificaciones = remember {
-        mutableStateListOf(
-            Calificacion(
-                1,
-                "Prueba 1",
-                5,
-                "Una historia cruda pero bellamente narrada.",
-            ),
-            Calificacion(
-                2,
-                "Prueba 2",
-                5,
-                "Muy largo pero con personajes inolvidables."
-            ),
-            Calificacion(
-                3,
-                "Prueba 3",
-                5,
-                "Jane Austen siempre logra un equilibrio perfecto entre humor y crítica social."
-            ),
-        )
-    }
-
+fun FrmLibrosContent(navController: NavHostController, modifier: Modifier = Modifier, libroId: Int? = null) {
+    val context = LocalContext.current
     val scrollState = rememberScrollState()
+    val scope = rememberCoroutineScope()
 
-    Column(
-        modifier = modifier
-            .fillMaxSize()
-            .padding(24.dp)
-            .horizontalScroll(scrollState)
-            .padding(8.dp),
-        horizontalAlignment = Alignment.Start,
-        verticalArrangement = Arrangement.Top
-    ) {
-        Button(
-            onClick = {
-                navController.navigate("menu")
-            },
-            colors = ButtonDefaults.buttonColors(
-                containerColor = Color.Transparent,
-                contentColor = Color.Blue
-            ),
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Text(
-                "Menú",
-                style = TextStyle(textDecoration = TextDecoration.Underline),
-                textAlign = TextAlign.Start,
-                modifier = Modifier.fillMaxWidth()
-            )
-        }
-        Spacer(modifier = Modifier.height(16.dp))
+    var titulo by rememberSaveable { mutableStateOf("") }
+    var autor by rememberSaveable { mutableStateOf("") }
+    var fecha by rememberSaveable { mutableStateOf("") }
+    var resena by rememberSaveable { mutableStateOf("") }
+    var isLoading by remember { mutableStateOf(false) }
 
-        Button(
-            onClick = {
-                calificaciones.add(
-                    Calificacion(
-                        4, "Prueba 4",
-                        5, "Excelente libro sobre estrategia y comportamiento humano."
-                    )
-                )
-            },
-            colors = ButtonDefaults.buttonColors(
-                containerColor = Color.Black,
-                contentColor = Color.White
-            ),
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Text(
-                "Agregar Producto Prueba", //lo que me aparece en recuadro gris en el blog no aparece
-                style = TextStyle(textDecoration = TextDecoration.Underline),
-                textAlign = TextAlign.Start,
-                modifier = Modifier.fillMaxWidth()
-            )
-        }
-        Spacer(modifier = Modifier.height(16.dp))
-        Row {
-            Text("ID Calificación", modifier = Modifier.width(120.dp), fontWeight = FontWeight.Bold)
-            Text("ID Libro", modifier = Modifier.width(100.dp), fontWeight = FontWeight.Bold)
-            Text("Calificación", modifier = Modifier.width(100.dp), fontWeight = FontWeight.Bold)
-            Text("Reseña", modifier = Modifier.width(200.dp), fontWeight = FontWeight.Bold)
-            Text("Eliminar", modifier = Modifier.width(100.dp), fontWeight = FontWeight.Bold)
+    val esEdicion = libroId != null && libroId > 0
 
-        }
-        Divider()
-        calificaciones.forEachIndexed { index, calificacion ->
-            val bgColor = if (index % 2 == 0) Color(0xFFF5F5F5) else Color.White
-
-            Row(
-                modifier = Modifier
-                    .background(bgColor)
-            ) {
-                Text(
-                    text = calificacion.idCalificacion.toString(),
-                    modifier = Modifier.width(150.dp)
-                )
-                Text(
-                    text = calificacion.libro,
-                    modifier = Modifier.width(100.dp)
-                )
-                Text(
-                    text = calificacion.calificacion.toString(),
-                    modifier = Modifier.width(200.dp)
-                )
-                Text(
-                    text = calificacion.resena,
-                    modifier = Modifier.width(200.dp)
-                )
-                Spacer(modifier = Modifier.width(10.dp))
-                Button(onClick = {
-                    calificaciones.removeAt(index)
-                    //Remueve en base al index del producto en la lista
-                }) {
-                    Text("Eliminar")
+    LaunchedEffect(libroId) {
+        if (esEdicion) {
+            isLoading = true
+            scope.launch {
+                try {
+                    val libro = api.obtenerLibro(libroId!!)
+                    titulo = libro.titulo
+                    autor = libro.autor
+                    fecha = libro.fecha
+                    resena = libro.resena
+                } catch (e: Exception) {
+                    Toast.makeText(context, "Error al cargar libro", Toast.LENGTH_SHORT).show()
+                } finally {
+                    isLoading = false
                 }
             }
-            Divider()
+        }
+    }
+
+    Column(modifier = modifier.fillMaxSize().padding(24.dp).verticalScroll(scrollState).padding(8.dp), horizontalAlignment = Alignment.Start, verticalArrangement = Arrangement.Top) {
+        Button(onClick = { navController.navigate("lstLibros") }, colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent, contentColor = Color.Blue), modifier = Modifier.fillMaxWidth()) {
+            Text("Tabla de Libros", style = TextStyle(textDecoration = TextDecoration.Underline), textAlign = TextAlign.Start, modifier = Modifier.fillMaxWidth())
+        }
+        Spacer(modifier = Modifier.height(16.dp))
+        Text(text = if (esEdicion) "Editar Libro" else "Agregar Libro", fontSize = 20.sp, fontWeight = FontWeight.ExtraBold, modifier = Modifier.align(Alignment.CenterHorizontally))
+        Spacer(modifier = Modifier.height(16.dp))
+
+        if (isLoading) {
+            CircularProgressIndicator(modifier = Modifier.align(Alignment.CenterHorizontally))
+        } else {
+            Text(text = "Título:")
+            OutlinedTextField(value = titulo, onValueChange = { titulo = it }, placeholder = { Text("Ingresa el Título") }, modifier = Modifier.fillMaxWidth())
+            Spacer(modifier = Modifier.height(16.dp))
+
+            Text(text = "Autor:")
+            OutlinedTextField(value = autor, onValueChange = { autor = it }, placeholder = { Text("Ingresa el Autor") }, modifier = Modifier.fillMaxWidth())
+            Spacer(modifier = Modifier.height(16.dp))
+
+            Text(text = "Fecha (YYYY-MM-DD):")
+            OutlinedTextField(value = fecha, onValueChange = { fecha = it }, placeholder = { Text("Ej: 2024-11-17") }, modifier = Modifier.fillMaxWidth())
+            Spacer(modifier = Modifier.height(16.dp))
+
+            Text(text = "Reseña:")
+            OutlinedTextField(value = resena, onValueChange = { resena = it }, placeholder = { Text("Ingresa una reseña") }, modifier = Modifier.fillMaxWidth(), maxLines = 6)
+            Spacer(modifier = Modifier.height(16.dp))
+
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                Button(onClick = {
+                    if (titulo.isBlank() || autor.isBlank() || fecha.isBlank()) {
+                        Toast.makeText(context, "Completa todos los campos", Toast.LENGTH_SHORT).show()
+                        return@Button
+                    }
+                    scope.launch {
+                        try {
+                            val response = if (esEdicion) {
+                                api.modificarLibro(libroId!!, titulo, autor, fecha, resena)
+                            } else {
+                                api.agregarLibro(titulo, autor, fecha, resena)
+                            }
+                            if (response.body() == "success") {
+                                val mensaje = if (esEdicion) "Libro actualizado" else "Libro agregado"
+                                Toast.makeText(context, mensaje, Toast.LENGTH_SHORT).show()
+                                navController.navigate("lstLibros")
+                            } else {
+                                Toast.makeText(context, "Error al guardar", Toast.LENGTH_SHORT).show()
+                            }
+                        } catch (e: Exception) {
+                            Log.e("API", "Error: ${e.message}")
+                            Toast.makeText(context, "Error de conexión", Toast.LENGTH_SHORT).show()
+                        }
+                    }
+                }) {
+                    Text(if (esEdicion) "Actualizar" else "Guardar")
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun LstCalificacionesContent(navController: NavHostController, modifier: Modifier = Modifier) {
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val scrollState = rememberScrollState()
+
+    var calificaciones by remember { mutableStateOf<List<CalificacionResponse>>(emptyList()) }
+    var isLoading by remember { mutableStateOf(true) }
+
+    LaunchedEffect(Unit) {
+        scope.launch {
+            try {
+                calificaciones = api.obtenerCalificaciones()
+            } catch (e: Exception) {
+                Log.e("API", "Error al obtener calificaciones: ${e.message}")
+                Toast.makeText(context, "Error al cargar calificaciones", Toast.LENGTH_SHORT).show()
+            } finally {
+                isLoading = false
+            }
+        }
+    }
+
+    Column(modifier = modifier.fillMaxSize().padding(24.dp).verticalScroll(scrollState).padding(8.dp), horizontalAlignment = Alignment.Start, verticalArrangement = Arrangement.Top) {
+        Button(onClick = { navController.navigate("Menu") }, colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent, contentColor = Color.Blue), modifier = Modifier.fillMaxWidth()) {
+            Text("Menú", style = TextStyle(textDecoration = TextDecoration.Underline), textAlign = TextAlign.Start, modifier = Modifier.fillMaxWidth())
+        }
+        Spacer(modifier = Modifier.height(16.dp))
+
+        Text(text = "Lista de Calificaciones", fontSize = 20.sp, fontWeight = FontWeight.ExtraBold, modifier = Modifier.align(Alignment.CenterHorizontally))
+        Spacer(modifier = Modifier.height(16.dp))
+
+        Button(onClick = { navController.navigate("frmCalificaciones/0") }, colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF4CAF50), contentColor = Color.White), modifier = Modifier.align(Alignment.End)) {
+            Text("+ Agregar Calificación")
+        }
+        Spacer(modifier = Modifier.height(16.dp))
+
+        if (isLoading) {
+            CircularProgressIndicator(modifier = Modifier.align(Alignment.CenterHorizontally))
+        } else {
+            val horizontalScrollState = rememberScrollState()
+            Column(modifier = Modifier.horizontalScroll(horizontalScrollState)) {
+                Row {
+                    Text("ID", modifier = Modifier.width(50.dp), fontWeight = FontWeight.Bold)
+                    Text("Libro", modifier = Modifier.width(150.dp), fontWeight = FontWeight.Bold)
+                    Text("Calificación", modifier = Modifier.width(100.dp), fontWeight = FontWeight.Bold)
+                    Text("Reseña", modifier = Modifier.width(200.dp), fontWeight = FontWeight.Bold)
+                    Text("Acciones", modifier = Modifier.width(200.dp), fontWeight = FontWeight.Bold)
+                }
+                Divider()
+                calificaciones.forEachIndexed { index, calif ->
+                    val bgColor = if (index % 2 == 0) Color(0xFFF5F5F5) else Color.White
+                    Row(modifier = Modifier.background(bgColor).padding(vertical = 4.dp)) {
+                        Text(text = calif.id.toString(), modifier = Modifier.width(50.dp))
+                        Text(text = calif.libro, modifier = Modifier.width(150.dp))
+                        Text(text = calif.calificacion.toString(), modifier = Modifier.width(100.dp))
+                        Text(text = calif.resena, modifier = Modifier.width(200.dp))
+                        Row(modifier = Modifier.width(200.dp)) {
+                            Button(onClick = { navController.navigate("frmCalificaciones/${calif.id}") }, colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2196F3)), modifier = Modifier.padding(end = 4.dp)) {
+                                Text("Editar", fontSize = 12.sp)
+                            }
+                            Button(onClick = {
+                                scope.launch {
+                                    try {
+                                        val response = api.eliminarCalificacion(calif.id)
+                                        if (response.body() == "success") {
+                                            Toast.makeText(context, "Calificación eliminada", Toast.LENGTH_SHORT).show()
+                                            calificaciones = api.obtenerCalificaciones()
+                                        } else {
+                                            Toast.makeText(context, "No se pudo eliminar", Toast.LENGTH_SHORT).show()
+                                        }
+                                    } catch (e: Exception) {
+                                        Toast.makeText(context, "Error al eliminar", Toast.LENGTH_SHORT).show()
+                                    }
+                                }
+                            }, colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE53935))) {
+                                Text("Eliminar", fontSize = 12.sp)
+                            }
+                        }
+                    }
+                    Divider()
+                }
+            }
         }
     }
 }
@@ -1023,7 +896,7 @@ fun FrmCalificacionesContent(navController: NavHostController, modifier: Modifie
             modifier = Modifier.fillMaxWidth()
         )*/
 
-        Text(text = "Libro:")
+        Text(text = "Calificación:")
         Spacer(modifier = Modifier.height(8.dp))
 
         var calif by remember { mutableStateOf("") }
@@ -1062,7 +935,7 @@ fun FrmCalificacionesContent(navController: NavHostController, modifier: Modifie
                     DropdownMenuItem(
                         text = { Text(opcion) },
                         onClick = {
-                            libro = opcion
+                            calif = opcion
                             expand = false
                         }
                     )
@@ -1091,7 +964,7 @@ fun FrmCalificacionesContent(navController: NavHostController, modifier: Modifie
             Button(
                 onClick = {
                     Toast.makeText(context, "Libro: ${libro}", Toast.LENGTH_SHORT).show()
-                    Toast.makeText(context, "Calificación: ${calificacion}", Toast.LENGTH_SHORT)
+                    Toast.makeText(context, "Calificación: ${calif}", Toast.LENGTH_SHORT)
                         .show()
                     Toast.makeText(context, "Reseña: ${resena}", Toast.LENGTH_SHORT).show()
                 },
@@ -1104,7 +977,6 @@ fun FrmCalificacionesContent(navController: NavHostController, modifier: Modifie
 
     }
 }
-
 
 
 @Preview(showBackground = true)
